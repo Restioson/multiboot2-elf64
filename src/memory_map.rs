@@ -29,6 +29,16 @@ pub struct MemoryArea {
     _reserved: u32,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum MemoryAreaType {
+    Available,
+    /// Usable memory holding ACPI information (Multiboot2 spec)
+    Acpi,
+    FaultyRam,
+    ReservedPreserveOnHibernation,
+    Reserved,
+}
+
 impl MemoryArea {
     pub fn start_address(&self) -> usize {
         self.base_addr as usize
@@ -40,6 +50,17 @@ impl MemoryArea {
 
     pub fn size(&self) -> usize {
         self.length as usize
+    }
+
+    pub fn memory_type(&self) -> MemoryAreaType {
+        use self::MemoryAreaType::*;
+        match self.typ {
+            1 => Available,
+            3 => Acpi,
+            4 => ReservedPreserveOnHibernation,
+            5 => FaultyRam,
+            _ => Reserved,
+        }
     }
 }
 
@@ -58,9 +79,7 @@ impl Iterator for MemoryAreaIter {
         } else {
             let area = unsafe{&*(self.current_area as *const MemoryArea)};
             self.current_area = self.current_area + (self.entry_size as u64);
-            if area.typ == 1 {
-                Some(area)
-            } else {self.next()}
+            Some(area)
         }
     }
 }
